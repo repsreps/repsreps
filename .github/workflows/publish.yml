@@ -1,0 +1,65 @@
+name: Publish RepsReps updates
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing published release tag (leave empty to deploy current feeds)
+        required: false
+        type: string
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: repsreps-updates
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test feed generation
+        run: python -m unittest discover -s tools -p 'test_*.py' -v
+      - uses: android-actions/setup-android@v3
+        if: env.RELEASE_TAG != ''
+      - name: Generate verified update feeds
+        if: env.RELEASE_TAG != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'build-tools;36.1.0'
+          mkdir -p /tmp/repsreps-apks
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > /tmp/repsreps-release.json
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'repsreps-*.apk' --dir /tmp/repsreps-apks
+          python tools/publish_feed.py --release /tmp/repsreps-release.json --downloads /tmp/repsreps-apks --build-tools "$ANDROID_HOME/build-tools/36.1.0"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish verified APK update feeds'
+            git push origin HEAD:main
+          fi
+      - name: Prepare Pages
+        run: |
+          mkdir -p /tmp/repsreps-pages
+          cp index.html .nojekyll /tmp/repsreps-pages/
+          cp -R updates /tmp/repsreps-pages/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/repsreps-pages
+      - uses: actions/deploy-pages@v4
+        id: deployment
