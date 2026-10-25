@@ -35,6 +35,9 @@ jobs:
         run: python -m unittest discover -s tools -p 'test_*.py' -v
       - uses: android-actions/setup-android@v3
         if: env.RELEASE_TAG != ''
+        with:
+          # The default includes the retired SDK 'tools' package.
+          packages: 'platform-tools'
       - name: Generate verified update feeds
         if: env.RELEASE_TAG != ''
         shell: bash
