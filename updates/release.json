@@ -2,5 +2,12 @@
   "schemaVersion": 1,
   "packageName": "com.repsreps.app",
   "channel": "release",
-  "release": null
+  "release": {
+    "versionCode": 24,
+    "versionName": "2.4",
+    "url": "https://github.com/repsreps/repsreps/releases/download/v2.4/repsreps-release.apk",
+    "size": 8487386,
+    "sha256": "db5c413b50ce2ac141a9dcd8df223373a18953b7e978a8d2c543b3cac6bf9897",
+    "notes": "Production release\r\n"
+  }
 }
